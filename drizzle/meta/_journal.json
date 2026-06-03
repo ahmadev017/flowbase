@@ -15,6 +15,13 @@
       "when": 1780463231679,
       "tag": "0001_little_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780471144856,
+      "tag": "0002_tricky_lord_tyger",
+      "breakpoints": true
     }
   ]
 }
