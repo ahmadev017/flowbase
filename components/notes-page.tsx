@@ -26,6 +26,7 @@ import {
   List,
   ListChecks,
   ListOrdered,
+  Mic,
   MoreHorizontal,
   PenLine,
   Pilcrow,
@@ -35,6 +36,7 @@ import {
   Redo2,
   Search,
   Sparkles,
+  Square,
   Strikethrough,
   Trash2,
   Type,
@@ -42,7 +44,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import {
   NoteDTO,
@@ -56,6 +58,7 @@ import {
   restoreNote,
   updateNote,
 } from "@/app/notes/actions";
+import { useAssemblyAIStreaming } from "@/lib/use-assemblyai-streaming";
 import { cn } from "@/lib/utils";
 
 const noteColors = ["#ef594a", "#55cdb4", "#f4b333", "#8b5cf6", "#2d9cdb", "#dc6259"];
@@ -216,6 +219,7 @@ export function NotesPage({
   const loadedNoteIdRef = useRef<number | null>(null);
   const editVersionRef = useRef(0);
   const toolbarSelectionRef = useRef<{ from: number; to: number } | null>(null);
+  const streamingDraftRangeRef = useRef<{ from: number; to: number } | null>(null);
   const selectedNote = useMemo(
     () => notes.find((note) => note.id === selectedNoteId && !note.deletedAt) ?? null,
     [notes, selectedNoteId]
@@ -318,6 +322,71 @@ export function NotesPage({
   function replaceNote(nextNote: NoteDTO) {
     setNotes((current) => current.map((note) => (note.id === nextNote.id ? nextNote : note)));
   }
+
+  const insertTranscriptIntoEditor = useCallback(
+    (transcript: string, mode: "partial" | "final" = "final") => {
+      if (!editor) {
+        return;
+      }
+
+      const trimmedTranscript = transcript.trim();
+      if (!trimmedTranscript) {
+        return;
+      }
+
+      const draftRange = streamingDraftRangeRef.current;
+      const validDraftRange = draftRange && draftRange.to <= editor.state.doc.content.size ? draftRange : null;
+      const selection = editor.state.selection;
+      const hasCursor = editor.view.hasFocus() && selection.empty;
+      const insertAt = validDraftRange ? validDraftRange.from : hasCursor ? selection.from : editor.state.doc.content.size;
+      const previousCharacter = insertAt > 1 ? editor.state.doc.textBetween(insertAt - 1, insertAt, "\n", "\n") : "";
+      const nextPosition = validDraftRange ? validDraftRange.to : insertAt;
+      const nextCharacter =
+        nextPosition < editor.state.doc.content.size ? editor.state.doc.textBetween(nextPosition, nextPosition + 1, "\n", "\n") : "";
+      const leadingSpace = previousCharacter && !/\s/.test(previousCharacter) ? " " : "";
+      const trailingSpace = nextCharacter && !/\s/.test(nextCharacter) ? " " : "";
+      const insertedText = `${leadingSpace}${trimmedTranscript}${trailingSpace || " "}`;
+
+      editor
+        .chain()
+        .focus()
+        .insertContentAt(validDraftRange ? validDraftRange : insertAt, insertedText)
+        .run();
+
+      if (mode === "partial") {
+        streamingDraftRangeRef.current = {
+          from: insertAt,
+          to: insertAt + insertedText.length,
+        };
+      } else {
+        streamingDraftRangeRef.current = null;
+      }
+
+      setEditorText(editor.getText());
+      editVersionRef.current += 1;
+      setSaveStatus("Unsaved");
+    },
+    [editor]
+  );
+
+  const {
+    error: streamingError,
+    isRecording,
+    isStarting,
+    isStopping,
+    livePreview,
+    start: startStreaming,
+    stop: stopStreaming,
+  } = useAssemblyAIStreaming({
+    onFinalTranscript: (transcript) => insertTranscriptIntoEditor(transcript, "final"),
+    onPartialTranscript: (transcript) => insertTranscriptIntoEditor(transcript, "partial"),
+  });
+
+  useEffect(() => {
+    if (!isRecording && !isStarting) {
+      streamingDraftRangeRef.current = null;
+    }
+  }, [isRecording, isStarting]);
 
   function getNoteIcon(iconName: string) {
     return noteIconOptions.find((item) => item.name === iconName)?.icon ?? FileText;
@@ -546,6 +615,12 @@ export function NotesPage({
       syncingEditorRef.current = false;
     });
   }, [editor, selectedNote, selectedNoteId]);
+
+  useEffect(() => {
+    if (streamingError) {
+      setMessage(streamingError);
+    }
+  }, [streamingError]);
 
   useEffect(() => {
     if (!editor || !selectedNote || saveStatus !== "Unsaved") {
@@ -1041,7 +1116,47 @@ export function NotesPage({
                   <ToolbarButton label="Redo" onClick={() => editor.chain().focus().redo().run()}>
                     <Redo2 className="h-4 w-4" aria-hidden="true" />
                   </ToolbarButton>
+                  <button
+                    type="button"
+                    onPointerDown={(event) => event.preventDefault()}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={isRecording || isStarting ? stopStreaming : startStreaming}
+                    disabled={isStopping}
+                    className={cn(
+                      "ml-1 flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-60",
+                      isRecording || isStarting
+                        ? "border-[#f0c7c1] bg-[#fee4df] text-[#c94d42] hover:bg-[#fdd8d0]"
+                        : "border-[#e1d8c8] bg-white text-[#5f5b55] hover:border-[#f0c7c1] hover:text-[#ef594a]"
+                    )}
+                  >
+                    {isRecording || isStarting ? (
+                      <>
+                        <span className="relative grid h-4 w-4 place-items-center">
+                          <span className="absolute h-4 w-4 animate-ping rounded-full bg-[#ef594a]/30" />
+                          <Mic className="relative h-4 w-4" aria-hidden="true" />
+                        </span>
+                        {isStarting ? "Connecting..." : "Stop Recording"}
+                        <Square className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="h-4 w-4" aria-hidden="true" />
+                        Speak to Note
+                      </>
+                    )}
+                  </button>
                 </div>
+
+                {livePreview ? (
+                  <div className="mt-3 rounded-md border border-[#d7ecf5] bg-[#f5fbff] px-3 py-2 text-sm text-[#2f586b] shadow-sm">
+                    <div className="flex items-start gap-2">
+                      <Mic className="mt-0.5 h-4 w-4 shrink-0 animate-pulse text-[#2d9cdb]" aria-hidden="true" />
+                      <p className="min-w-0 flex-1">
+                        <span className="font-bold">Listening:</span> {livePreview}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <div className="relative min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-8 lg:px-12">
