@@ -1,4 +1,4 @@
-import { boolean, date, integer, jsonb, pgTable, serial, text, time, timestamp } from "drizzle-orm/pg-core";
+import { boolean, date, integer, jsonb, pgTable, serial, text, time, timestamp, unique } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -38,6 +38,28 @@ export const kanbanBoards = pgTable("kanban_boards", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const kanbanBoardShares = pgTable(
+  "kanban_board_shares",
+  {
+    id: serial("id").primaryKey(),
+    boardId: integer("board_id")
+      .notNull()
+      .references(() => kanbanBoards.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+    role: text("role").notNull().default("editor"),
+    invitedByUserId: integer("invited_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    acceptedAt: timestamp("accepted_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    boardEmailUnique: unique("kanban_board_shares_board_email_unique").on(table.boardId, table.email),
+  })
+);
+
 export const kanbanColumns = pgTable("kanban_columns", {
   id: serial("id").primaryKey(),
   boardId: integer("board_id")
@@ -76,6 +98,8 @@ export type CalendarTask = typeof calendarTasks.$inferSelect;
 export type NewCalendarTask = typeof calendarTasks.$inferInsert;
 export type KanbanBoard = typeof kanbanBoards.$inferSelect;
 export type NewKanbanBoard = typeof kanbanBoards.$inferInsert;
+export type KanbanBoardShare = typeof kanbanBoardShares.$inferSelect;
+export type NewKanbanBoardShare = typeof kanbanBoardShares.$inferInsert;
 export type KanbanColumn = typeof kanbanColumns.$inferSelect;
 export type NewKanbanColumn = typeof kanbanColumns.$inferInsert;
 export type KanbanTask = typeof kanbanTasks.$inferSelect;
