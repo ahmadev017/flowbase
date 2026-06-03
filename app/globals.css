@@ -131,3 +131,148 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .notion-editor .ProseMirror {
+    min-height: 520px;
+    overflow-wrap: anywhere;
+  }
+
+  .notion-editor .ProseMirror > * + * {
+    margin-top: 0.85rem;
+  }
+
+  .notion-editor .ProseMirror p.is-editor-empty:first-child::before,
+  .notion-editor .ProseMirror .is-empty::before {
+    color: #a9a196;
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .notion-editor h1 {
+    color: #111827;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.18;
+  }
+
+  .notion-editor h2 {
+    color: #111827;
+    font-size: 1.45rem;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  .notion-editor h3 {
+    color: #292524;
+    font-size: 1.15rem;
+    font-weight: 800;
+  }
+
+  .notion-editor .text-size-1 {
+    color: #111827;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.18;
+  }
+
+  .notion-editor .text-size-2 {
+    color: #111827;
+    font-size: 1.45rem;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  .notion-editor ul,
+  .notion-editor ol {
+    list-style-position: inside;
+    padding-left: 0;
+  }
+
+  .notion-editor ul:not([data-type="taskList"]) {
+    list-style-type: disc;
+  }
+
+  .notion-editor ol {
+    list-style-type: decimal;
+  }
+
+  .notion-editor li {
+    padding-left: 0;
+  }
+
+  .notion-editor ul:not([data-type="taskList"]) > li,
+  .notion-editor ol > li {
+    margin: 0.35rem 0;
+  }
+
+  .notion-editor ul:not([data-type="taskList"]) > li > p,
+  .notion-editor ol > li > p {
+    display: inline;
+    margin: 0;
+  }
+
+  .notion-editor blockquote {
+    border-left: 4px solid #ef594a;
+    color: #5f5b55;
+    margin-left: 0;
+    padding-left: 1rem;
+  }
+
+  .notion-editor mark {
+    background: #fff0bd;
+    border-radius: 0.2rem;
+    padding: 0.05rem 0.12rem;
+  }
+
+  .notion-editor hr {
+    border: 0;
+    border-top: 1px solid #e1d8c8;
+    margin: 1.5rem 0;
+  }
+
+  .notion-editor ul[data-type="taskList"],
+  .notion-task-list {
+    list-style: none;
+    margin-left: 0;
+    padding-left: 0 !important;
+  }
+
+  .notion-editor ul[data-type="taskList"] li,
+  .notion-task-item {
+    align-items: flex-start;
+    display: flex;
+    gap: 0.65rem;
+    margin: 0.45rem 0;
+    padding-left: 0;
+  }
+
+  .notion-editor ul[data-type="taskList"] li > label,
+  .notion-task-item > label {
+    display: grid;
+    flex: 0 0 auto;
+    height: 1.7rem;
+    place-items: center;
+    width: 1.25rem;
+  }
+
+  .notion-editor ul[data-type="taskList"] li > label input[type="checkbox"],
+  .notion-task-item input[type="checkbox"] {
+    accent-color: #ef594a;
+    height: 1rem;
+    margin: 0;
+    width: 1rem;
+  }
+
+  .notion-editor ul[data-type="taskList"] li > div,
+  .notion-task-item > div {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .notion-editor ul[data-type="taskList"] li > div > p {
+    margin: 0;
+  }
+}

@@ -91,6 +91,27 @@ export const kanbanTasks = pgTable("kanban_tasks", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const notes = pgTable("notes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  content: jsonb("content")
+    .$type<Record<string, unknown>>()
+    .default({
+      type: "doc",
+      content: [{ type: "paragraph" }],
+    })
+    .notNull(),
+  color: text("color").notNull().default("#55cdb4"),
+  icon: text("icon").notNull().default("FileText"),
+  isPinned: boolean("is_pinned").default(false).notNull(),
+  deletedAt: timestamp("deleted_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -104,3 +125,5 @@ export type KanbanColumn = typeof kanbanColumns.$inferSelect;
 export type NewKanbanColumn = typeof kanbanColumns.$inferInsert;
 export type KanbanTask = typeof kanbanTasks.$inferSelect;
 export type NewKanbanTask = typeof kanbanTasks.$inferInsert;
+export type Note = typeof notes.$inferSelect;
+export type NewNote = typeof notes.$inferInsert;
