@@ -45,7 +45,7 @@ const menuGroups: MenuGroup[] = [
   {
     label: "WORKSPACE",
     items: [
-      { label: "Task / Kanban", icon: TableColumnsSplit, color: "text-amber-600" },
+      { label: "Task / Kanban", href: "/kanban", icon: TableColumnsSplit, color: "text-amber-600" },
       { label: "Notes", icon: FileText, color: "text-sky-600" },
       { label: "Whiteboard", icon: Waypoints, color: "text-rose-500" },
       { label: "Pages / Spaces", icon: Users, color: "text-emerald-600" },
@@ -207,7 +207,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <nav className="mt-3 grid grid-cols-2 gap-2">
-              {menuGroups[0].items
+              {menuGroups
+                .flatMap((group) => group.items)
                 .filter((item) => item.href)
                 .map((item) => {
                   const Icon = item.icon;
