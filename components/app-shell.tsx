@@ -47,7 +47,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { label: "Task / Kanban", href: "/kanban", icon: TableColumnsSplit, color: "text-amber-600" },
       { label: "Notes", href: "/notes", icon: FileText, color: "text-sky-600" },
-      { label: "Whiteboard", icon: Waypoints, color: "text-rose-500" },
+      { label: "Whiteboard", href: "/whiteboard", icon: Waypoints, color: "text-rose-500" },
       { label: "Pages / Spaces", icon: Users, color: "text-emerald-600" },
     ],
   },
