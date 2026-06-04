@@ -2,6 +2,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { FlowbaseLiveblocksProvider } from '@/components/liveblocks-provider';
 import "./globals.css";
 import "@liveblocks/react-ui/styles.css";
+import "@excalidraw/excalidraw/index.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
