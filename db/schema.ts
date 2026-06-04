@@ -126,6 +126,65 @@ export const whiteboards = pgTable("whiteboards", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const spaces = pgTable("spaces", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  color: text("color").notNull().default("#8b5cf6"),
+  isFavorite: boolean("is_favorite").default(false).notNull(),
+  isArchived: boolean("is_archived").default(false).notNull(),
+  lastOpenedAt: timestamp("last_opened_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const spaceShares = pgTable(
+  "space_shares",
+  {
+    id: serial("id").primaryKey(),
+    spaceId: integer("space_id")
+      .notNull()
+      .references(() => spaces.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+    role: text("role").notNull().default("editor"),
+    invitedByUserId: integer("invited_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    acceptedAt: timestamp("accepted_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    spaceEmailUnique: unique("space_shares_space_email_unique").on(table.spaceId, table.email),
+  })
+);
+
+export const workspacePages = pgTable("workspace_pages", {
+  id: serial("id").primaryKey(),
+  spaceId: integer("space_id")
+    .notNull()
+    .references(() => spaces.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  template: text("template").notNull().default("Blank Page"),
+  description: text("description").notNull().default(""),
+  isFavorite: boolean("is_favorite").default(false).notNull(),
+  isArchived: boolean("is_archived").default(false).notNull(),
+  commentsCount: integer("comments_count").default(0).notNull(),
+  linkedTasksCount: integer("linked_tasks_count").default(0).notNull(),
+  lastEditedBy: text("last_edited_by").notNull().default("You"),
+  lastEditedByInitials: text("last_edited_by_initials").notNull().default("ME"),
+  content: jsonb("content")
+    .$type<Record<string, unknown>>()
+    .default({ text: "" })
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -143,3 +202,9 @@ export type Note = typeof notes.$inferSelect;
 export type NewNote = typeof notes.$inferInsert;
 export type Whiteboard = typeof whiteboards.$inferSelect;
 export type NewWhiteboard = typeof whiteboards.$inferInsert;
+export type Space = typeof spaces.$inferSelect;
+export type NewSpace = typeof spaces.$inferInsert;
+export type SpaceShare = typeof spaceShares.$inferSelect;
+export type NewSpaceShare = typeof spaceShares.$inferInsert;
+export type WorkspacePage = typeof workspacePages.$inferSelect;
+export type NewWorkspacePage = typeof workspacePages.$inferInsert;

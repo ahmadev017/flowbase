@@ -12,6 +12,10 @@ export function getKanbanRoomId(boardId: number) {
   return `flowbase:kanban-board:${boardId}`;
 }
 
+export function getSpaceRoomId(spaceId: number) {
+  return `flowbase:space:${spaceId}`;
+}
+
 export function getAvatarColor(value: string) {
   let hash = 0;
 
@@ -74,6 +78,54 @@ export async function grantKanbanRoomAccess(boardId: number, email: string) {
   }
 
   await liveblocks.updateRoom(getKanbanRoomId(boardId), {
+    defaultAccesses: [],
+    usersAccesses: {
+      [normalizeEmail(email)]: ["room:write"],
+    },
+  });
+}
+
+export async function ensureSpaceRoom(space: { id: number; name: string; userEmail: string }) {
+  const liveblocks = getLiveblocksClient();
+
+  if (!liveblocks) {
+    return;
+  }
+
+  await liveblocks.upsertRoom(getSpaceRoomId(space.id), {
+    update: {
+      defaultAccesses: [],
+      metadata: {
+        spaceId: String(space.id),
+        spaceName: space.name,
+        kind: "space",
+      },
+      usersAccesses: {
+        [normalizeEmail(space.userEmail)]: ["room:write"],
+      },
+    },
+    create: {
+      defaultAccesses: [],
+      metadata: {
+        spaceId: String(space.id),
+        spaceName: space.name,
+        kind: "space",
+      },
+      usersAccesses: {
+        [normalizeEmail(space.userEmail)]: ["room:write"],
+      },
+    },
+  });
+}
+
+export async function grantSpaceRoomAccess(spaceId: number, email: string) {
+  const liveblocks = getLiveblocksClient();
+
+  if (!liveblocks) {
+    return;
+  }
+
+  await liveblocks.updateRoom(getSpaceRoomId(spaceId), {
     defaultAccesses: [],
     usersAccesses: {
       [normalizeEmail(email)]: ["room:write"],

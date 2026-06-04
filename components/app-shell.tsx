@@ -6,13 +6,13 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  Folder,
   Home,
   LayoutTemplate,
   Search,
   Settings,
   Sparkles,
   TableColumnsSplit,
-  Users,
   Waypoints,
 } from "lucide-react";
 import Link from "next/link";
@@ -48,7 +48,7 @@ const menuGroups: MenuGroup[] = [
       { label: "Task / Kanban", href: "/kanban", icon: TableColumnsSplit, color: "text-amber-600" },
       { label: "Notes", href: "/notes", icon: FileText, color: "text-sky-600" },
       { label: "Whiteboard", href: "/whiteboard", icon: Waypoints, color: "text-rose-500" },
-      { label: "Pages / Spaces", icon: Users, color: "text-emerald-600" },
+      { label: "Pages / Spaces", href: "/spaces", icon: Folder, color: "text-violet-600" },
     ],
   },
   {
