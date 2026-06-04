@@ -57,6 +57,13 @@
       "when": 1780572448304,
       "tag": "0007_cheerful_silver_surfer",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780573894393,
+      "tag": "0008_windy_rumiko_fujikawa",
+      "breakpoints": true
     }
   ]
 }
