@@ -28,6 +28,7 @@ import {
   ListOrdered,
   Mic,
   MoreHorizontal,
+  NotebookPen,
   PenLine,
   Pilcrow,
   Pin,
@@ -58,16 +59,18 @@ import {
   restoreNote,
   updateNote,
 } from "@/app/notes/actions";
+import type { UserCategoryDTO } from "@/app/settings/actions";
 import { useAssemblyAIStreaming } from "@/lib/use-assemblyai-streaming";
 import { cn } from "@/lib/utils";
 
-const noteColors = ["#ef594a", "#55cdb4", "#f4b333", "#8b5cf6", "#2d9cdb", "#dc6259"];
-const noteIconOptions = [
+const fallbackNoteColors = ["#ef594a", "#55cdb4", "#f4b333", "#8b5cf6", "#2d9cdb", "#dc6259"];
+const fallbackNoteIconOptions = [
   { name: "FileText", icon: FileText },
   { name: "BookOpen", icon: BookOpen },
   { name: "Lightbulb", icon: Lightbulb },
   { name: "Sparkles", icon: Sparkles },
   { name: "PenLine", icon: PenLine },
+  { name: "NotebookPen", icon: NotebookPen },
 ];
 const refineOperations: RefineOperation[] = [
   "Improve grammar",
@@ -197,9 +200,11 @@ function ToolbarButton({
 
 export function NotesPage({
   initialNotes,
+  initialCategories,
   authError,
 }: {
   initialNotes: NoteDTO[];
+  initialCategories?: UserCategoryDTO[];
   authError?: string;
 }) {
   const [notes, setNotes] = useState(initialNotes);
@@ -215,6 +220,25 @@ export function NotesPage({
   const [slashMenu, setSlashMenu] = useState({ open: false, left: 0, top: 0, query: "" });
   const [editorText, setEditorText] = useState("");
   const [isPending, startTransition] = useTransition();
+  const noteColors = useMemo(
+    () => (initialCategories?.length ? [...new Set(initialCategories.map((category) => category.color))] : fallbackNoteColors),
+    [initialCategories]
+  );
+  const noteIconOptions = useMemo(() => {
+    if (!initialCategories?.length) {
+      return fallbackNoteIconOptions;
+    }
+
+    const allowed = new Map(fallbackNoteIconOptions.map((item) => [item.name, item]));
+    const categoryIcons = initialCategories
+      .map((category) => allowed.get(category.icon))
+      .filter((item): item is (typeof fallbackNoteIconOptions)[number] => Boolean(item));
+    const uniqueOptions = [...categoryIcons, ...fallbackNoteIconOptions].filter(
+      (item, index, all) => all.findIndex((candidate) => candidate.name === item.name) === index
+    );
+
+    return uniqueOptions;
+  }, [initialCategories]);
   const syncingEditorRef = useRef(false);
   const loadedNoteIdRef = useRef<number | null>(null);
   const editVersionRef = useRef(0);

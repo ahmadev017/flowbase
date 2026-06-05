@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { GeneratedAppSchema, generatedApps, users } from "@/db/schema";
 import { syncCurrentUser } from "@/lib/sync-user";
+import { getUserAISettings } from "@/lib/user-settings";
 
 export type GeneratedAppComponent = GeneratedAppSchema["sections"][number]["components"][number];
 export type GeneratedAppDTO = {
@@ -338,6 +339,12 @@ export async function generateTemplateApp(prompt: string) {
   }
 
   const userId = await getCurrentUserId();
+  const aiSettings = await getUserAISettings(userId);
+
+  if (!aiSettings.features.aiTemplateBuilder) {
+    throw new Error("AI Template Builder is disabled in Settings.");
+  }
+
   const calculatorSchema = isCalculatorPrompt(cleanPrompt) ? buildCalculatorSchema(cleanPrompt) : null;
 
   if (calculatorSchema) {
@@ -361,9 +368,10 @@ export async function generateTemplateApp(prompt: string) {
 
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: aiSettings.preferredModel || "gemini-2.5-flash",
     contents: [
       "Create a concise single-page mini app/template model for a productivity dashboard.",
+      `Default behavior: ${aiSettings.defaultBehavior}. Tone: ${aiSettings.responseTone}.`,
       "Return only strict JSON. No markdown, comments, or prose.",
       "Required shape:",
       '{"appName":"string","description":"string","icon":"Lucide icon name","color":"#RRGGBB","layout":"single-page","sections":[{"id":"short-id","title":"string","description":"optional","components":[{"id":"short-id","type":"stats|list|table|form|progress|checklist|buttons|tags|chart|calculator","title":"string","description":"optional","fields":[{"label":"string","type":"text|number|date|select|textarea","placeholder":"string","value":"string"}],"items":[{"label":"string","value":"string","status":"string","progress":number,"checked":boolean}],"actions":[{"label":"string","variant":"primary|secondary"}]}]}],"actions":[{"label":"string","variant":"primary|secondary"}],"sampleData":[{"label":"string","value":"string"}]}',

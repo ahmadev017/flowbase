@@ -12,7 +12,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.2.3",
+    "@clerk/nextjs": "7.2.3",
     "@excalidraw/excalidraw": "^0.18.1",
     "@google/genai": "^2.7.0",
     "@liveblocks/client": "^3.19.4",

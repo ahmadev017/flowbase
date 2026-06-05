@@ -59,7 +59,7 @@ const menuGroups: MenuGroup[] = [
     label: "BUILD",
     items: [
       { label: "AI Template Builder", href: "/ai-template-builder", icon: LayoutTemplate, color: "text-pink-600" },
-      { label: "Settings", icon: Settings, color: "text-slate-500" },
+      { label: "Settings", href: "/settings", icon: Settings, color: "text-slate-500" },
     ],
   },
 ];

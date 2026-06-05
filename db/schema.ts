@@ -10,6 +10,83 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export type UserAISettings = {
+  preferredModel: string;
+  defaultBehavior: string;
+  responseTone: string;
+  features: {
+    aiRefine: boolean;
+    aiAssistant: boolean;
+    aiTemplateBuilder: boolean;
+    aiWhiteboard: boolean;
+  };
+};
+
+export type UserNotificationSettings = {
+  email: boolean;
+  desktop: boolean;
+  reminders: boolean;
+  weeklyDigest: boolean;
+};
+
+export type UserPrivacySettings = {
+  twoFactorReminder: boolean;
+  showProfileInSharedSpaces: boolean;
+  allowProductAnalytics: boolean;
+};
+
+export const userSettings = pgTable("user_settings", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  themePreference: text("theme_preference").notNull().default("system"),
+  notificationSettings: jsonb("notification_settings").$type<UserNotificationSettings>().default({
+    email: true,
+    desktop: true,
+    reminders: true,
+    weeklyDigest: false,
+  }).notNull(),
+  defaultCalendarView: text("default_calendar_view").notNull().default("month"),
+  defaultTaskPriority: text("default_task_priority").notNull().default("Medium"),
+  autoSave: boolean("auto_save").default(true).notNull(),
+  aiSettings: jsonb("ai_settings").$type<UserAISettings>().default({
+    preferredModel: "gemini-2.5-flash",
+    defaultBehavior: "balanced",
+    responseTone: "friendly",
+    features: {
+      aiRefine: true,
+      aiAssistant: true,
+      aiTemplateBuilder: true,
+      aiWhiteboard: true,
+    },
+  }).notNull(),
+  privacySettings: jsonb("privacy_settings").$type<UserPrivacySettings>().default({
+    twoFactorReminder: true,
+    showProfileInSharedSpaces: true,
+    allowProductAnalytics: false,
+  }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userSettingsUserUnique: unique("user_settings_user_unique").on(table.userId),
+}));
+
+export const userCategories = pgTable("user_categories", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  scope: text("scope").notNull(),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("#ef594a"),
+  icon: text("icon").notNull().default("Tag"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userCategoryScopeNameUnique: unique("user_categories_user_scope_name_unique").on(table.userId, table.scope, table.name),
+}));
+
 export const calendarTasks = pgTable("calendar_tasks", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -229,6 +306,10 @@ export const workspacePages = pgTable("workspace_pages", {
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type UserSettings = typeof userSettings.$inferSelect;
+export type NewUserSettings = typeof userSettings.$inferInsert;
+export type UserCategory = typeof userCategories.$inferSelect;
+export type NewUserCategory = typeof userCategories.$inferInsert;
 export type CalendarTask = typeof calendarTasks.$inferSelect;
 export type NewCalendarTask = typeof calendarTasks.$inferInsert;
 export type KanbanBoard = typeof kanbanBoards.$inferSelect;

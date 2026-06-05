@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { users, whiteboards } from "@/db/schema";
 import { syncCurrentUser } from "@/lib/sync-user";
+import { getUserAISettings } from "@/lib/user-settings";
 
 export type WhiteboardSceneElements = unknown[];
 export type WhiteboardAppState = Record<string, unknown>;
@@ -267,11 +268,19 @@ export async function generateWhiteboardDiagram(prompt: string) {
     throw new Error("GEMINI_API_KEY is not configured.");
   }
 
+  const userId = await getCurrentUserId();
+  const aiSettings = await getUserAISettings(userId);
+
+  if (!aiSettings.features.aiWhiteboard) {
+    throw new Error("AI Whiteboard is disabled in Settings.");
+  }
+
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: aiSettings.preferredModel || "gemini-2.5-flash",
     contents: [
       "Create a concise diagram model for an Excalidraw whiteboard.",
+      `Default behavior: ${aiSettings.defaultBehavior}. Tone: ${aiSettings.responseTone}.`,
       "Return only strict JSON with this exact shape:",
       '{"type":"flowchart|mind_map|system_architecture|user_journey|process","title":"string","nodes":[{"id":"short-id","label":"string","detail":"optional string","group":"optional string"}],"edges":[{"from":"node-id","to":"node-id","label":"optional string"}]}',
       "Use 3 to 10 nodes. Keep labels short. Ensure every edge references existing node ids.",
