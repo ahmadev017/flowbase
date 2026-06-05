@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { notes, users } from "@/db/schema";
 import { syncCurrentUser } from "@/lib/sync-user";
+import { getUserAISettings } from "@/lib/user-settings";
 
 export type NoteContent = Record<string, unknown>;
 
@@ -39,7 +40,7 @@ const defaultNoteContent: NoteContent = {
 };
 
 const noteColors = new Set(["#ef594a", "#55cdb4", "#f4b333", "#8b5cf6", "#2d9cdb", "#dc6259"]);
-const noteIcons = new Set(["FileText", "BookOpen", "Lightbulb", "Sparkles", "PenLine"]);
+const noteIcons = new Set(["FileText", "BookOpen", "Lightbulb", "Sparkles", "PenLine", "NotebookPen"]);
 
 function serializeNote(note: typeof notes.$inferSelect): NoteDTO {
   return {
@@ -249,7 +250,15 @@ export async function refineSelectedText(input: {
     throw new Error("GEMINI_API_KEY is not configured.");
   }
 
-  const toneInstruction = input.operation === "Change tone" ? ` Use a ${input.tone ?? "friendly"} tone.` : "";
+  const userId = await getCurrentUserId();
+  const aiSettings = await getUserAISettings(userId);
+
+  if (!aiSettings.features.aiRefine) {
+    throw new Error("AI Refine is disabled in Settings.");
+  }
+
+  const toneInstruction =
+    input.operation === "Change tone" ? ` Use a ${input.tone ?? aiSettings.responseTone ?? "friendly"} tone.` : "";
   const prompt = [
     "Rewrite the selected note text according to the requested operation.",
     "Return only the replacement text. Do not wrap it in quotes or markdown fences.",
@@ -260,7 +269,7 @@ export async function refineSelectedText(input: {
 
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: aiSettings.preferredModel || "gemini-2.5-flash",
     contents: prompt,
   });
   const refined = response.text?.trim();

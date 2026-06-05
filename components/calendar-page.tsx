@@ -20,14 +20,20 @@ import {
   scheduleCalendarTask,
   updateCalendarTask,
 } from "@/app/calendar/actions";
+import type { UserCategoryDTO } from "@/app/settings/actions";
 import { cn } from "@/lib/utils";
 
-const categories = [
-  { label: "Work", color: "#168f79", chip: "bg-[#dff8f0] text-[#28685c] border-[#9fd8ca]" },
-  { label: "Personal", color: "#dc6259", chip: "bg-[#fee4df] text-[#90433b] border-[#f0c7c1]" },
-  { label: "Focus", color: "#2d9cdb", chip: "bg-[#dff2fb] text-[#2f6b86] border-[#bce3f3]" },
-  { label: "Meeting", color: "#df8a2f", chip: "bg-[#fff1c8] text-[#7c6227] border-[#f0d98c]" },
-  { label: "Reminder", color: "#8b5cf6", chip: "bg-[#ece5ff] text-[#6b3bc3] border-[#d8ccff]" },
+const fallbackCategories: UserCategoryDTO[] = [
+  { id: 0, scope: "calendar", name: "Work", color: "#168f79", icon: "BriefcaseBusiness" },
+  { id: 1, scope: "calendar", name: "Personal", color: "#dc6259", icon: "Heart" },
+  { id: 2, scope: "calendar", name: "Focus", color: "#2d9cdb", icon: "Target" },
+  { id: 3, scope: "calendar", name: "Meeting", color: "#df8a2f", icon: "Users" },
+];
+const fallbackReminderCategories: UserCategoryDTO[] = [
+  { id: 10, scope: "reminders", name: "Follow-up", color: "#55cdb4", icon: "MessageCircle" },
+  { id: 11, scope: "reminders", name: "Deadline", color: "#ef594a", icon: "AlarmClock" },
+  { id: 12, scope: "reminders", name: "Personal", color: "#dc6259", icon: "Heart" },
+  { id: 13, scope: "reminders", name: "Habit", color: "#168f79", icon: "Repeat2" },
 ];
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -49,8 +55,8 @@ const initialForm: DraftForm = {
   description: "",
   scheduledTime: "",
   type: "task",
-  category: categories[0].label,
-  categoryColor: categories[0].color,
+  category: fallbackCategories[0].name,
+  categoryColor: fallbackCategories[0].color,
 };
 
 function startOfDay(date: Date) {
@@ -120,11 +126,17 @@ function taskTypeStyle(type: CalendarTaskType) {
 
 export function CalendarPage({
   initialTasks,
+  initialCategories,
   authError,
 }: {
   initialTasks: CalendarTaskDTO[];
+  initialCategories?: UserCategoryDTO[];
   authError?: string;
 }) {
+  const categories = initialCategories?.length ? initialCategories : [...fallbackCategories, ...fallbackReminderCategories];
+  const taskCategories = categories.filter((category) => category.scope === "calendar");
+  const reminderCategories = categories.filter((category) => category.scope === "reminders");
+  const defaultTaskCategory = taskCategories[0] ?? fallbackCategories[0];
   const today = useMemo(() => startOfDay(new Date()), []);
   const [tasks, setTasks] = useState(initialTasks);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -134,7 +146,11 @@ export function CalendarPage({
   const [dialogMode, setDialogMode] = useState<DialogMode>("create");
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [dayDetailsDate, setDayDetailsDate] = useState<string | null>(null);
-  const [form, setForm] = useState<DraftForm>(initialForm);
+  const [form, setForm] = useState<DraftForm>({
+    ...initialForm,
+    category: defaultTaskCategory.name,
+    categoryColor: defaultTaskCategory.color,
+  });
   const [message, setMessage] = useState(authError ?? "");
   const [isPending, startTransition] = useTransition();
 
@@ -145,6 +161,8 @@ export function CalendarPage({
   const drafts = tasks.filter((task) => task.isDraft);
   const scheduledTasks = tasks.filter((task) => !task.isDraft && task.scheduledDate);
   const selectedTasks = scheduledTasks.filter((task) => task.scheduledDate === selectedDate);
+  const activeCategories = form.type === "reminder" ? reminderCategories : taskCategories;
+  const displayedCategories = activeCategories.length ? activeCategories : taskCategories;
 
   function tasksForDate(key: string) {
     return scheduledTasks
@@ -157,7 +175,11 @@ export function CalendarPage({
   }
 
   function resetForm() {
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+      category: defaultTaskCategory.name,
+      categoryColor: defaultTaskCategory.color,
+    });
     setActiveTaskId(null);
     setDialogMode("create");
   }
@@ -208,10 +230,22 @@ export function CalendarPage({
   }
 
   function handleCategoryChange(label: string) {
-    const category = categories.find((item) => item.label === label) ?? categories[0];
+    const category = displayedCategories.find((item) => item.name === label) ?? displayedCategories[0];
     setForm((current) => ({
       ...current,
-      category: category.label,
+      category: category.name,
+      categoryColor: category.color,
+    }));
+  }
+
+  function handleTypeChange(type: CalendarTaskType) {
+    const nextCategories = type === "reminder" ? reminderCategories : taskCategories;
+    const category = nextCategories[0] ?? defaultTaskCategory;
+
+    setForm((current) => ({
+      ...current,
+      type,
+      category: category.name,
       categoryColor: category.color,
     }));
   }
@@ -705,9 +739,7 @@ export function CalendarPage({
                   Type
                   <select
                     value={form.type}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, type: event.target.value as CalendarTaskType }))
-                    }
+                    onChange={(event) => handleTypeChange(event.target.value as CalendarTaskType)}
                     className="h-12 rounded-md border border-[#e1d8c8] bg-[#fffaf0] px-4 text-base font-semibold outline-none transition focus:border-[#ef594a] focus:ring-2 focus:ring-[#fee4df]"
                   >
                     <option value="task">Task</option>
@@ -719,21 +751,25 @@ export function CalendarPage({
               <div className="grid gap-2">
                 <p className="text-sm font-bold text-[#403c37]">Category</p>
                 <div className="flex flex-wrap gap-3">
-                  {categories.map((category) => (
+                  {displayedCategories.map((category) => (
                     <button
-                      key={category.label}
+                      key={category.id || category.name}
                       type="button"
-                      onClick={() => handleCategoryChange(category.label)}
+                      onClick={() => handleCategoryChange(category.name)}
                       className={cn(
                         "flex h-11 min-w-0 items-center justify-center gap-2 rounded-md border px-4 text-sm font-bold shadow-sm transition",
-                        category.chip,
-                        form.category === category.label
+                        form.category === category.name
                           ? "ring-2 ring-[#ef594a]/70"
                           : "opacity-90 hover:opacity-100"
                       )}
+                      style={{
+                        backgroundColor: `${category.color}18`,
+                        borderColor: `${category.color}55`,
+                        color: "#403c37",
+                      }}
                     >
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
-                      <span className="truncate">{category.label}</span>
+                      <span className="truncate">{category.name}</span>
                     </button>
                   ))}
                 </div>

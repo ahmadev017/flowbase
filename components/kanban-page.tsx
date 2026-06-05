@@ -42,10 +42,11 @@ import {
   updateKanbanColumn,
   updateKanbanTask,
 } from "@/app/kanban/actions";
+import type { UserCategoryDTO } from "@/app/settings/actions";
 import { cn } from "@/lib/utils";
 
 const boardColors = ["#ef594a", "#55cdb4", "#f4b333", "#8b5cf6", "#2d9cdb", "#dc6259"];
-const labelOptions: KanbanLabel[] = [
+const fallbackLabelOptions: KanbanLabel[] = [
   { name: "Focus", color: "#55cdb4" },
   { name: "Design", color: "#ef594a" },
   { name: "Meeting", color: "#f4b333" },
@@ -429,9 +430,11 @@ function TaskCommentsPanel({ state, onClose }: { state: NonNullable<CommentPanel
 
 export function KanbanPage({
   initialBoards,
+  initialCategories,
   authError,
 }: {
   initialBoards: KanbanBoardDTO[];
+  initialCategories?: UserCategoryDTO[];
   authError?: string;
 }) {
   const [boards, setBoards] = useState(initialBoards);
@@ -451,6 +454,13 @@ export function KanbanPage({
   const [newColumnName, setNewColumnName] = useState("");
   const [message, setMessage] = useState(authError ?? "");
   const [isPending, startTransition] = useTransition();
+  const labelOptions = useMemo(
+    () =>
+      initialCategories?.length
+        ? initialCategories.map((category) => ({ name: category.name, color: category.color }))
+        : fallbackLabelOptions,
+    [initialCategories]
+  );
 
   const selectedBoard = useMemo(
     () => boards.find((board) => board.id === selectedBoardId) ?? boards[0] ?? null,
