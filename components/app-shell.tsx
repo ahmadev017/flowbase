@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { SignOutButton, useUser } from "@clerk/nextjs";
 import {
   Bot,
   CalendarDays,
@@ -10,6 +10,7 @@ import {
   Folder,
   Home,
   LayoutTemplate,
+  LogOut,
   Search,
   Settings,
   Sparkles,
@@ -19,7 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { listSidebarGeneratedApps, toggleGeneratedAppSidebar } from "@/app/ai-template-builder/actions";
 import type { GeneratedAppDTO } from "@/app/ai-template-builder/actions";
@@ -42,7 +43,7 @@ const menuGroups: MenuGroup[] = [
   {
     label: "HOME",
     items: [
-      { label: "Dashboard", href: "/", icon: Home, color: "text-[#e85b4f]" },
+      { label: "Dashboard", href: "/dashboard", icon: Home, color: "text-[#e85b4f]" },
       { label: "AI Assistant", href: "/assistant", icon: Bot, color: "text-violet-500" },
       { label: "Calendar", href: "/calendar", icon: CalendarDays, color: "text-teal-500" },
     ],
@@ -69,10 +70,12 @@ function SidebarMenuItem({
   item,
   collapsed,
   active,
+  onNavigate,
 }: {
   item: MenuItem;
   collapsed: boolean;
   active: boolean;
+  onNavigate?: () => void;
 }) {
   const Icon = item.icon;
   const className = cn(
@@ -92,6 +95,7 @@ function SidebarMenuItem({
     return (
       <Link
         href={item.href}
+        onClick={onNavigate}
         title={collapsed ? item.label : undefined}
         aria-label={item.label}
         className={className}
@@ -118,18 +122,21 @@ function SidebarGeneratedAppItem({
   collapsed,
   active,
   onRemove,
+  onNavigate,
   pending,
 }: {
   app: GeneratedAppDTO;
   collapsed: boolean;
   active: boolean;
   onRemove: () => void;
+  onNavigate?: () => void;
   pending: boolean;
 }) {
   return (
     <div className="group relative">
       <Link
         href={`/ai-template-builder/${app.id}`}
+        onClick={onNavigate}
         title={collapsed ? app.appName : undefined}
         aria-label={app.appName}
         className={cn(
@@ -164,9 +171,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarApps, setSidebarApps] = useState<GeneratedAppDTO[]>([]);
   const [sidebarMessage, setSidebarMessage] = useState("");
+  const [sidebarQuery, setSidebarQuery] = useState("");
   const [isPending, startTransition] = useTransition();
   const pathname = usePathname();
   const { isLoaded, isSignedIn } = useUser();
+  const normalizedSidebarQuery = sidebarQuery.trim().toLowerCase();
+  const filteredMenuGroups = useMemo(() => {
+    if (!normalizedSidebarQuery) {
+      return menuGroups;
+    }
+
+    return menuGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) =>
+          [item.label, item.href ?? "", group.label].join(" ").toLowerCase().includes(normalizedSidebarQuery)
+        ),
+      }))
+      .filter((group) => group.items.length);
+  }, [normalizedSidebarQuery]);
+  const filteredSidebarApps = useMemo(() => {
+    if (!normalizedSidebarQuery) {
+      return sidebarApps;
+    }
+
+    return sidebarApps.filter((app) =>
+      [app.appName, app.description, app.icon].filter(Boolean).join(" ").toLowerCase().includes(normalizedSidebarQuery)
+    );
+  }, [normalizedSidebarQuery, sidebarApps]);
+  const hasSearchResults = filteredMenuGroups.length > 0 || filteredSidebarApps.length > 0;
 
   function refreshSidebarApps() {
     if (!isLoaded) {
@@ -243,17 +276,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
             <div
               className={cn(
-                "flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-[#e1d8c8] bg-white px-3 text-[13px] font-medium text-[#77736b] shadow-sm",
+                "flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-[#e1d8c8] bg-white px-3 text-[13px] font-medium text-[#77736b] shadow-sm transition focus-within:border-[#ef594a] focus-within:ring-2 focus-within:ring-[#fee4df]",
                 collapsed && "hidden"
               )}
             >
               <Search className="h-4 w-4 shrink-0 text-[#77736b]" aria-hidden="true" />
-              <span className="truncate">Search everything</span>
+              <input
+                type="search"
+                value={sidebarQuery}
+                onChange={(event) => setSidebarQuery(event.target.value)}
+                className="min-w-0 flex-1 bg-transparent text-[13px] font-semibold text-[#403c37] outline-none placeholder:text-[#8a867d]"
+                placeholder="Search workspace"
+                aria-label="Search sidebar navigation"
+              />
+              {sidebarQuery ? (
+                <button
+                  type="button"
+                  onClick={() => setSidebarQuery("")}
+                  className="grid h-6 w-6 shrink-0 place-items-center rounded text-[#8a867d] transition hover:bg-[#fff0ed] hover:text-[#ef594a]"
+                  aria-label="Clear sidebar search"
+                  title="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              ) : null}
             </div>
           </div>
 
-          <nav className="mt-5 flex-1 space-y-4 overflow-hidden">
-            {menuGroups.map((group) => (
+          <nav className="mt-5 flex-1 space-y-4 overflow-y-auto pr-1">
+            {filteredMenuGroups.map((group) => (
               <section key={group.label} className="space-y-2">
                 <p
                   className={cn(
@@ -269,13 +320,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       key={item.label}
                       item={item}
                       collapsed={collapsed}
-                      active={item.href === "/" ? pathname === "/" : pathname === item.href}
+                      active={pathname === item.href}
+                      onNavigate={() => setSidebarQuery("")}
                     />
                   ))}
                 </div>
               </section>
             ))}
-            {sidebarApps.length ? (
+            {filteredSidebarApps.length ? (
               <section className="space-y-2">
                 <p
                   className={cn(
@@ -286,13 +338,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   GENERATED
                 </p>
                 <div className="space-y-1">
-                  {sidebarApps.map((app) => (
+                  {filteredSidebarApps.map((app) => (
                     <SidebarGeneratedAppItem
                       key={app.id}
                       app={app}
                       collapsed={collapsed}
                       active={pathname === `/ai-template-builder/${app.id}`}
                       onRemove={() => handleRemoveSidebarApp(app)}
+                      onNavigate={() => setSidebarQuery("")}
                       pending={isPending}
                     />
                   ))}
@@ -302,17 +355,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 ) : null}
               </section>
             ) : null}
+            {normalizedSidebarQuery && !hasSearchResults ? (
+              <div className="rounded-md border border-dashed border-[#d8cdbb] bg-white px-3 py-5 text-center">
+                <Search className="mx-auto h-5 w-5 text-[#8a867d]" aria-hidden="true" />
+                <p className="mt-3 text-sm font-bold text-[#292524]">No matches found</p>
+                <p className="mt-1 text-xs font-semibold leading-5 text-[#77736b]">Try searching notes, kanban, calendar, AI, or settings.</p>
+              </div>
+            ) : null}
           </nav>
 
           <footer className="mt-4">
-            <div className={cn("flex items-center gap-3 rounded-md p-1", collapsed && "justify-center")}>
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#24211f] text-lg font-semibold text-white shadow-sm">
-                N
+            <div className={cn("space-y-2", collapsed && "space-y-3")}>
+              <div className={cn("flex items-center gap-3 rounded-md p-1", collapsed && "justify-center")}>
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#24211f] text-lg font-semibold text-white shadow-sm">
+                  N
+                </div>
+                <div className={cn("min-w-0", collapsed && "sr-only")}>
+                  <p className="truncate text-sm font-semibold text-[#292524]">Nova team</p>
+                  <p className="truncate text-xs text-[#77736b]">Personal plan</p>
+                </div>
               </div>
-              <div className={cn("min-w-0", collapsed && "sr-only")}>
-                <p className="truncate text-sm font-semibold text-[#292524]">Nova team</p>
-                <p className="truncate text-xs text-[#77736b]">Personal plan</p>
-              </div>
+              <SignOutButton redirectUrl="/">
+                <button
+                  type="button"
+                  title={collapsed ? "Sign out" : undefined}
+                  aria-label="Sign out"
+                  className={cn(
+                    "flex h-10 w-full items-center gap-3 rounded-md border border-[#e1d8c8] bg-white px-3 text-sm font-bold text-[#57534e] shadow-sm transition hover:border-[#ef594a] hover:text-[#ef594a]",
+                    collapsed && "justify-center px-0"
+                  )}
+                >
+                  <LogOut className="h-4 w-4 shrink-0 text-[#ef594a]" aria-hidden="true" />
+                  <span className={cn("min-w-0 truncate", collapsed && "sr-only")}>Sign out</span>
+                </button>
+              </SignOutButton>
             </div>
           </footer>
         </aside>
@@ -344,7 +420,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 })),
               ].map((item) => {
                 const Icon = item.icon;
-                const active = item.href === "/" ? pathname === "/" : pathname === item.href;
+                const active = pathname === item.href;
 
                 return (
                   <Link
