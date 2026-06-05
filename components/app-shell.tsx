@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import {
   Bot,
   CalendarDays,
@@ -42,7 +43,7 @@ const menuGroups: MenuGroup[] = [
     label: "HOME",
     items: [
       { label: "Dashboard", href: "/", icon: Home, color: "text-[#e85b4f]" },
-      { label: "AI Assistant", icon: Bot, color: "text-violet-500" },
+      { label: "AI Assistant", href: "/assistant", icon: Bot, color: "text-violet-500" },
       { label: "Calendar", href: "/calendar", icon: CalendarDays, color: "text-teal-500" },
     ],
   },
@@ -165,8 +166,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarMessage, setSidebarMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const pathname = usePathname();
+  const { isLoaded, isSignedIn } = useUser();
 
   function refreshSidebarApps() {
+    if (!isLoaded) {
+      return;
+    }
+
+    if (!isSignedIn) {
+      setSidebarApps([]);
+      setSidebarMessage("");
+      return;
+    }
+
     startTransition(async () => {
       try {
         const apps = await listSidebarGeneratedApps();
@@ -183,7 +195,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.addEventListener("flowbase-sidebar-apps-updated", refreshSidebarApps);
 
     return () => window.removeEventListener("flowbase-sidebar-apps-updated", refreshSidebarApps);
-  }, []);
+  }, [isLoaded, isSignedIn]);
 
   function handleRemoveSidebarApp(app: GeneratedAppDTO) {
     startTransition(async () => {
