@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { notes, users } from "@/db/schema";
+import { logActivity } from "@/lib/activity-log";
 import { syncCurrentUser } from "@/lib/sync-user";
 import { getUserAISettings } from "@/lib/user-settings";
 
@@ -131,6 +132,13 @@ export async function createNote(input?: { title?: string; color?: string }) {
     .returning();
 
   revalidatePath("/notes");
+  await logActivity({
+    userId,
+    feature: "notes",
+    action: "Created note",
+    title: note.title,
+    metadata: { noteId: note.id },
+  });
   return serializeNote(note);
 }
 
@@ -172,6 +180,13 @@ export async function updateNote(
     .returning();
 
   revalidatePath("/notes");
+  await logActivity({
+    userId,
+    feature: "notes",
+    action: "Updated note",
+    title: note.title,
+    metadata: { noteId: note.id },
+  });
   return serializeNote(note);
 }
 
@@ -192,6 +207,13 @@ export async function duplicateNote(noteId: number) {
     .returning();
 
   revalidatePath("/notes");
+  await logActivity({
+    userId,
+    feature: "notes",
+    action: "Duplicated note",
+    title: copy.title,
+    metadata: { noteId: copy.id, sourceNoteId: note.id },
+  });
   return serializeNote(copy);
 }
 
@@ -208,6 +230,13 @@ export async function deleteNote(noteId: number) {
   }
 
   revalidatePath("/notes");
+  await logActivity({
+    userId,
+    feature: "notes",
+    action: "Deleted note",
+    title: note.title,
+    metadata: { noteId: note.id },
+  });
   return serializeNote(note);
 }
 
@@ -224,6 +253,13 @@ export async function restoreNote(noteId: number) {
   }
 
   revalidatePath("/notes");
+  await logActivity({
+    userId,
+    feature: "notes",
+    action: "Restored note",
+    title: note.title,
+    metadata: { noteId: note.id },
+  });
   return serializeNote(note);
 }
 

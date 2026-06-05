@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { users, whiteboards } from "@/db/schema";
+import { logActivity } from "@/lib/activity-log";
 import { syncCurrentUser } from "@/lib/sync-user";
 import { getUserAISettings } from "@/lib/user-settings";
 
@@ -138,6 +139,13 @@ export async function createWhiteboard(input?: { name?: string; color?: string }
     .returning();
 
   revalidatePath("/whiteboard");
+  await logActivity({
+    userId,
+    feature: "whiteboard",
+    action: "Created whiteboard",
+    title: board.name,
+    metadata: { whiteboardId: board.id },
+  });
   return serializeWhiteboard(board);
 }
 
@@ -164,6 +172,13 @@ export async function updateWhiteboard(
     .returning();
 
   revalidatePath("/whiteboard");
+  await logActivity({
+    userId,
+    feature: "whiteboard",
+    action: "Updated whiteboard",
+    title: board.name,
+    metadata: { whiteboardId: board.id, elementCount: board.sceneElements.length },
+  });
   return serializeWhiteboard(board);
 }
 
@@ -182,6 +197,13 @@ export async function renameWhiteboard(whiteboardId: number, input: { name?: str
     .returning();
 
   revalidatePath("/whiteboard");
+  await logActivity({
+    userId,
+    feature: "whiteboard",
+    action: "Renamed whiteboard",
+    title: board.name,
+    metadata: { whiteboardId: board.id },
+  });
   return serializeWhiteboard(board);
 }
 
