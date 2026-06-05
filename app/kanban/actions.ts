@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { calendarTasks, kanbanBoardShares, kanbanBoards, kanbanColumns, kanbanTasks, users } from "@/db/schema";
+import { logActivity } from "@/lib/activity-log";
 import { ensureKanbanRoom, grantKanbanRoomAccess, normalizeEmail } from "@/lib/liveblocks";
 import { syncCurrentUser } from "@/lib/sync-user";
 
@@ -371,6 +372,13 @@ export async function createKanbanBoard(input: { name: string; color: string }) 
   await ensureKanbanRoom({ id: board.id, name: board.name, userEmail: user.email });
 
   revalidatePath("/kanban");
+  await logActivity({
+    userId: user.id,
+    feature: "kanban",
+    action: "Created Kanban board",
+    title: board.name,
+    metadata: { boardId: board.id },
+  });
 
   return {
     id: board.id,
@@ -404,6 +412,13 @@ export async function updateKanbanBoard(boardId: number, input: { name: string; 
   await ensureKanbanRoom({ id: board.id, name: board.name, userEmail: owner?.email ?? user.email });
 
   revalidatePath("/kanban");
+  await logActivity({
+    userId: user.id,
+    feature: "kanban",
+    action: "Updated Kanban board",
+    title: board.name,
+    metadata: { boardId: board.id },
+  });
 
   return {
     id: board.id,
@@ -441,6 +456,13 @@ export async function createKanbanColumn(boardId: number, name: string) {
     .returning();
 
   revalidatePath("/kanban");
+  await logActivity({
+    userId: user.id,
+    feature: "kanban",
+    action: "Added Kanban column",
+    title: column.name,
+    metadata: { boardId, columnId: column.id },
+  });
 
   return {
     id: column.id,
@@ -514,6 +536,13 @@ export async function createKanbanTask(columnId: number, input: KanbanTaskInput)
 
   revalidatePath("/kanban");
   revalidatePath("/calendar");
+  await logActivity({
+    userId: user.id,
+    feature: "kanban",
+    action: "Created task",
+    title: finalTask.title,
+    metadata: { taskId: finalTask.id, columnId: finalTask.columnId, dueDate: finalTask.dueDate, priority: finalTask.priority },
+  });
   return serializeTask(finalTask);
 }
 
@@ -550,6 +579,13 @@ export async function updateKanbanTask(taskId: number, input: KanbanTaskInput) {
 
   revalidatePath("/kanban");
   revalidatePath("/calendar");
+  await logActivity({
+    userId: user.id,
+    feature: "kanban",
+    action: "Updated task",
+    title: finalTask.title,
+    metadata: { taskId: finalTask.id, columnId: finalTask.columnId, dueDate: finalTask.dueDate, priority: finalTask.priority },
+  });
   return serializeTask(finalTask);
 }
 

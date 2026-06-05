@@ -303,6 +303,21 @@ export const workspacePages = pgTable("workspace_pages", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export type ActivityMetadata = Record<string, unknown>;
+
+export const activityLogs = pgTable("activity_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  feature: text("feature").notNull(),
+  action: text("action").notNull(),
+  title: text("title").notNull(),
+  metadata: jsonb("metadata").$type<ActivityMetadata>().default({}).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -332,3 +347,5 @@ export type SpaceShare = typeof spaceShares.$inferSelect;
 export type NewSpaceShare = typeof spaceShares.$inferInsert;
 export type WorkspacePage = typeof workspacePages.$inferSelect;
 export type NewWorkspacePage = typeof workspacePages.$inferInsert;
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type NewActivityLog = typeof activityLogs.$inferInsert;

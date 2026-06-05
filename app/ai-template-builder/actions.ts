@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { GeneratedAppSchema, generatedApps, users } from "@/db/schema";
+import { logActivity } from "@/lib/activity-log";
 import { syncCurrentUser } from "@/lib/sync-user";
 import { getUserAISettings } from "@/lib/user-settings";
 
@@ -363,6 +364,13 @@ export async function generateTemplateApp(prompt: string) {
       .returning();
 
     revalidatePath("/ai-template-builder");
+    await logActivity({
+      userId,
+      feature: "ai-template-builder",
+      action: "Generated AI template",
+      title: app.appName,
+      metadata: { appId: app.id },
+    });
     return serializeApp(app);
   }
 
@@ -404,6 +412,13 @@ export async function generateTemplateApp(prompt: string) {
     .returning();
 
   revalidatePath("/ai-template-builder");
+  await logActivity({
+    userId,
+    feature: "ai-template-builder",
+    action: "Generated AI template",
+    title: app.appName,
+    metadata: { appId: app.id },
+  });
   return serializeApp(app);
 }
 
@@ -435,6 +450,13 @@ export async function updateGeneratedAppSchema(appId: number, schemaInput: Gener
 
   revalidatePath("/ai-template-builder");
   revalidatePath(`/ai-template-builder/${appId}`);
+  await logActivity({
+    userId,
+    feature: "ai-template-builder",
+    action: "Updated AI template",
+    title: updated.appName,
+    metadata: { appId: updated.id },
+  });
   return serializeApp(updated);
 }
 

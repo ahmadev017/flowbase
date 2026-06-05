@@ -16,6 +16,7 @@ import { createWhiteboard, generateWhiteboardDiagram } from "@/app/whiteboard/ac
 import { generateTemplateApp } from "@/app/ai-template-builder/actions";
 import { db } from "@/db";
 import { kanbanBoards, kanbanColumns, kanbanTasks } from "@/db/schema";
+import { logActivity } from "@/lib/activity-log";
 import { getCurrentWorkspaceUserId, getUserAISettings } from "@/lib/user-settings";
 
 export type AssistantHistoryMessage = {
@@ -896,7 +897,16 @@ async function executeIntent(intent: Intent, input: AssistantTurnInput): Promise
 
 export async function runAssistantTurn(input: AssistantTurnInput): Promise<AssistantTurnResult> {
   if (input.confirmedAction) {
-    return executePendingAction(input.confirmedAction);
+    const result = await executePendingAction(input.confirmedAction);
+    if (result.actionSummary) {
+      await logActivity({
+        userId: await getCurrentWorkspaceUserId(),
+        feature: "assistant",
+        action: "AI assistant action",
+        title: result.actionSummary,
+      });
+    }
+    return result;
   }
 
   const message = input.message.trim();
@@ -906,7 +916,16 @@ export async function runAssistantTurn(input: AssistantTurnInput): Promise<Assis
 
   try {
     const intent = parseKanbanShortcut(message, input.history) ?? (await classifyIntent(input));
-    return await executeIntent(intent, input);
+    const result = await executeIntent(intent, input);
+    if (result.actionSummary && !result.pendingAction) {
+      await logActivity({
+        userId: await getCurrentWorkspaceUserId(),
+        feature: "assistant",
+        action: "AI assistant action",
+        title: result.actionSummary,
+      });
+    }
+    return result;
   } catch (error) {
     return {
       message: error instanceof Error ? error.message : "I hit a snag while handling that request.",

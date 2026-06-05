@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { calendarTasks, users } from "@/db/schema";
+import { logActivity } from "@/lib/activity-log";
 import { syncCurrentUser } from "@/lib/sync-user";
 
 export type CalendarTaskType = "task" | "reminder";
@@ -115,6 +116,13 @@ export async function createCalendarTask(input: CalendarTaskInput) {
     .returning();
 
   revalidatePath("/calendar");
+  await logActivity({
+    userId,
+    feature: "calendar",
+    action: input.type === "reminder" ? "Added calendar reminder" : "Created calendar task",
+    title: task.title,
+    metadata: { taskId: task.id, type: task.type, scheduledDate: task.scheduledDate, scheduledTime: task.scheduledTime },
+  });
   return serializeTask(task);
 }
 
@@ -143,6 +151,13 @@ export async function updateCalendarTask(taskId: number, input: CalendarTaskInpu
   }
 
   revalidatePath("/calendar");
+  await logActivity({
+    userId,
+    feature: "calendar",
+    action: task.type === "reminder" ? "Updated calendar reminder" : "Updated calendar task",
+    title: task.title,
+    metadata: { taskId: task.id, type: task.type, scheduledDate: task.scheduledDate, scheduledTime: task.scheduledTime },
+  });
   return serializeTask(task);
 }
 
@@ -163,5 +178,12 @@ export async function scheduleCalendarTask(taskId: number, scheduledDate: string
   }
 
   revalidatePath("/calendar");
+  await logActivity({
+    userId,
+    feature: "calendar",
+    action: task.type === "reminder" ? "Scheduled reminder" : "Scheduled task",
+    title: task.title,
+    metadata: { taskId: task.id, type: task.type, scheduledDate: task.scheduledDate, scheduledTime: task.scheduledTime },
+  });
   return serializeTask(task);
 }

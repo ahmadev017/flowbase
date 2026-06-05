@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
 import { spaceShares, spaces, users, workspacePages } from "@/db/schema";
+import { logActivity } from "@/lib/activity-log";
 import { ensureSpaceRoom, getAvatarColor, grantSpaceRoomAccess, normalizeEmail } from "@/lib/liveblocks";
 import { syncCurrentUser } from "@/lib/sync-user";
 
@@ -408,6 +409,13 @@ export async function createSpace(input: { name: string; description?: string; c
 
   await ensureSpaceRoom({ id: space.id, name: space.name, userEmail: user.email });
   revalidatePath("/spaces");
+  await logActivity({
+    userId: user.id,
+    feature: "spaces",
+    action: "Created space",
+    title: space.name,
+    metadata: { spaceId: space.id },
+  });
   return serializeSpace(
     space,
     0,
@@ -455,6 +463,13 @@ export async function updateSpace(
   const owner = membersBySpace.get(space.id)?.find((member) => member.status === "owner");
   await ensureSpaceRoom({ id: space.id, name: space.name, userEmail: owner?.email ?? user.email });
   revalidatePath("/spaces");
+  await logActivity({
+    userId: user.id,
+    feature: "spaces",
+    action: "Updated space",
+    title: space.name,
+    metadata: { spaceId: space.id },
+  });
   return serializeSpace(
     space,
     pages.filter((page) => !page.isArchived).length,
@@ -570,6 +585,13 @@ export async function createPage(input: { spaceId: number; name: string; templat
 
   await db.update(spaces).set({ updatedAt: new Date() }).where(eq(spaces.id, input.spaceId));
   revalidatePath("/spaces");
+  await logActivity({
+    userId: user.id,
+    feature: "spaces",
+    action: "Created page",
+    title: page.name,
+    metadata: { pageId: page.id, spaceId: page.spaceId },
+  });
   return serializePage(page);
 }
 
@@ -614,6 +636,13 @@ export async function updatePage(
   const [updated] = await db.update(workspacePages).set(payload).where(eq(workspacePages.id, pageId)).returning();
   await db.update(spaces).set({ updatedAt: new Date() }).where(eq(spaces.id, page.spaceId));
   revalidatePath("/spaces");
+  await logActivity({
+    userId: user.id,
+    feature: "spaces",
+    action: "Updated page",
+    title: updated.name,
+    metadata: { pageId: updated.id, spaceId: updated.spaceId },
+  });
   return serializePage(updated);
 }
 
